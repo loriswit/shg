@@ -1,0 +1,12 @@
+name: SimpleHungerGames
+version: "1.0"
+main: com.loriswit.shg.Shg
+api-version: "1.15"
+
+commands:
+  start:
+    description: Starts the game
+    usage: /start
+  reset:
+    description: Resets the game
+    usage: /reset
