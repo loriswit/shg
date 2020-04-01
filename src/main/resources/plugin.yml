@@ -7,6 +7,6 @@ commands:
   start:
     description: Starts the game
     usage: /start
-  reset:
-    description: Resets the game
-    usage: /reset
+  end:
+    description: Ends the game
+    usage: /end

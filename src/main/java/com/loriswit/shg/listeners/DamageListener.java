@@ -1,5 +1,6 @@
 package com.loriswit.shg.listeners;
 
+import com.loriswit.shg.Game;
 import com.loriswit.shg.PlayerTracker;
 import com.loriswit.shg.Shg;
 import org.bukkit.*;
@@ -16,30 +17,23 @@ public class DamageListener implements Listener
     @EventHandler
     public void onEntityDamage(EntityDamageEvent event)
     {
+        if (Shg.game.getState() != Game.State.RUNNING)
+            return;
+
         if (event.getEntity().getType() != EntityType.PLAYER)
             return;
 
-        if (!Shg.getInstance().hasStarted())
-        {
-            event.setCancelled(true);
-            return;
-        }
-
-        if (event instanceof EntityDamageByEntityEvent && !Shg.getInstance().isPvpEnabled())
-            if (((EntityDamageByEntityEvent) event).getDamager().getType() == EntityType.PLAYER)
-            {
-                event.setCancelled(true);
-                return;
-            }
-
         var player = (Player) event.getEntity();
+
+        // skip if player still alive
         if (player.getHealth() - event.getDamage() > 0)
             return;
 
-        // if player DED
         event.setCancelled(true);
         var console = Bukkit.getConsoleSender();
         Bukkit.dispatchCommand(console, "title " + player.getName() + " times 0 100 20");
+
+        Player killer = null;
 
         if (event instanceof EntityDamageByEntityEvent)
         {
@@ -47,22 +41,23 @@ public class DamageListener implements Listener
             if (damager.getType() == EntityType.PLAYER || (damager.getType() == EntityType.ARROW && ((Arrow) damager).getShooter() instanceof Player))
             {
                 if (damager.getType() == EntityType.ARROW)
-                    damager = (Player) ((Arrow) damager).getShooter();
+                    killer = (Player) ((Arrow) damager).getShooter();
+                else
+                    killer = (Player) damager;
 
-                var killer = damager.getName();
-                Bukkit.dispatchCommand(console, "title " + player.getName() + " subtitle {\"text\":\"tué par " + killer + "\"}");
-                Bukkit.broadcastMessage(ChatColor.YELLOW + killer + " a tué " + player.getName());
-                Shg.getInstance().getStats(damager).kills++;
+                Bukkit.dispatchCommand(console, "title " + player.getName() + " subtitle {\"text\":\"tué par " + killer.getName() + "\"}");
+                Bukkit.broadcastMessage(ChatColor.YELLOW + killer.getName() + " a tué " + player.getName());
             }
             else
-                Bukkit.broadcastMessage(ChatColor.YELLOW + "Un animal a tué " + player.getName());
+                Bukkit.broadcastMessage(ChatColor.YELLOW + "Un mob a tué " + player.getName());
         }
         else
         {
+            Bukkit.getLogger().info("Damage: " + event.getCause());
             switch (event.getCause())
             {
                 case SUFFOCATION:
-                    Bukkit.broadcastMessage(ChatColor.YELLOW + player.getName() + " s'est étouffé");
+                    Bukkit.broadcastMessage(ChatColor.YELLOW + player.getName() + " est mort dans la tempête");
                     break;
                 case FALL:
                     Bukkit.broadcastMessage(ChatColor.YELLOW + player.getName() + " a fait une chute mortelle");
@@ -93,7 +88,7 @@ public class DamageListener implements Listener
 
         // drop all items
         for (var item : player.getInventory().getContents())
-            if (item != null && !item.getItemMeta().getDisplayName().equals(PlayerTracker.name))
+            if (item != null)
             {
                 player.getWorld().dropItemNaturally(player.getLocation(), item);
                 player.getInventory().remove(item);
@@ -109,31 +104,6 @@ public class DamageListener implements Listener
         Bukkit.dispatchCommand(console, "title " + player.getName() + " title {\"text\":\"Tu es mort !\"}");
         player.setGameMode(GameMode.SPECTATOR);
 
-        var alive = Shg.getInstance().getAlivePlayers();
-        Shg.getInstance().getStats(player).rank = alive.size();
-        alive.remove(player);
-
-        if (alive.size() == 1)
-        {
-            var winner = alive.get(0);
-            var stats = Shg.getInstance().getStats(winner);
-            stats.rank = 1;
-            Bukkit.dispatchCommand(console, "title " + winner.getName() + " times 0 100 20");
-            Bukkit.dispatchCommand(console, "title " + winner.getName() + " title {\"text\":\"Tu as gagné !\"}");
-            Bukkit.broadcastMessage(ChatColor.RED + winner.getName() + " a gagné ! (" + stats.kills + " kills)");
-
-            Bukkit.getLogger().info("Fin de la partie");
-
-            Shg.getInstance().finish();
-
-            // play victory music
-            player.getWorld().playSound(player.getLocation(), Sound.ITEM_TOTEM_USE, 1000, 1);
-            player.getWorld().playSound(player.getLocation(), Sound.MUSIC_DISC_CHIRP, 1000, 1);
-        }
-        else
-        {
-            player.getWorld().playSound(player.getLocation(), Sound.ENTITY_LIGHTNING_BOLT_THUNDER, 1000, 1);
-            Bukkit.broadcastMessage(ChatColor.YELLOW + "Il reste " + alive.size() + " joueurs");
-        }
+        Shg.game.kill(player, killer);
     }
 }

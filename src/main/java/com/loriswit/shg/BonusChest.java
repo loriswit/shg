@@ -9,7 +9,7 @@ import java.util.Random;
 
 public class BonusChest
 {
-    private static final List<Material> ironMats = new ArrayList<Material>()
+    private static final List<Material> ironMats = new ArrayList<>()
     {{
         add(Material.IRON_AXE);
         add(Material.IRON_SWORD);
@@ -20,7 +20,7 @@ public class BonusChest
         add(Material.IRON_BOOTS);
     }};
 
-    private static final List<Material> diamondMats = new ArrayList<Material>()
+    private static final List<Material> diamondMats = new ArrayList<>()
     {{
         add(Material.DIAMOND_AXE);
         add(Material.DIAMOND_SWORD);
@@ -31,7 +31,7 @@ public class BonusChest
         add(Material.DIAMOND_BOOTS);
     }};
 
-    private static final List<Material> foodMats = new ArrayList<Material>()
+    private static final List<Material> foodMats = new ArrayList<>()
     {{
         add(Material.BREAD);
         add(Material.COOKED_BEEF);
@@ -42,7 +42,7 @@ public class BonusChest
         add(Material.COOKED_PORKCHOP);
     }};
 
-    private static final List<Material> miscMats = new ArrayList<Material>()
+    private static final List<Material> miscMats = new ArrayList<>()
     {{
         add(Material.FLINT_AND_STEEL);
         add(Material.LAVA_BUCKET);
@@ -59,7 +59,7 @@ public class BonusChest
     {
         var items = new ArrayList<ItemStack>();
 
-        if (Math.random() > 0.5)
+        if (Math.random() > 0.4)
             items.add(new ItemStack(randFromList(ironMats)));
         else
             items.add(new ItemStack(randFromList(diamondMats)));
@@ -67,17 +67,23 @@ public class BonusChest
         items.add(new ItemStack(randFromList(foodMats), 2));
         items.add(new ItemStack(randFromList(foodMats)));
 
-        if (Math.random() > 0.85)
+        var bonus = Math.random();
+
+        if (bonus <= 0.15)
             items.add(new ItemStack(randFromList(miscMats)));
 
-        else if (Math.random() > 0.9)
+        else if (bonus > 0.15 && bonus <= 0.3)
         {
             items.add(new ItemStack(Material.BOW));
-            items.add(new ItemStack(Material.ARROW, 5));
+            items.add(new ItemStack(Material.ARROW, 3));
         }
 
-        else if (Math.random() > 0.9)
-            items.add(new ItemStack(Material.DIRT, 64));
+        else if (bonus > 0.3 && bonus <= 0.45)
+        {
+            var tracker = PlayerTracker.item();
+            tracker.setAmount(3);
+            items.add(tracker);
+        }
 
         return items;
     }

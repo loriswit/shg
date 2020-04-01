@@ -25,7 +25,7 @@ public class InteractListener implements Listener
 
         Player nearestPlayer = null;
         double shortestDistance = Double.POSITIVE_INFINITY;
-        for (var p : Shg.getInstance().getAlivePlayers())
+        for (var p : Shg.game.getAlivePlayers())
         {
             if (p == player)
                 continue;
@@ -40,29 +40,18 @@ public class InteractListener implements Listener
 
         if (nearestPlayer != null)
         {
-//            Bukkit.getLogger().info(player.getName() + " is targeting " + nearestPlayer.getName());
-
             var target = nearestPlayer.getLocation().clone();
             target.setY(target.getY() + 1);
             var direction = target.subtract(player.getEyeLocation()).toVector();
             var location = player.getLocation().setDirection(direction);
             player.teleport(location);
 
-            if(event.getHand() == EquipmentSlot.HAND)
-                player.getInventory().getItemInMainHand().setAmount(0);
-            else
-                player.getInventory().getItemInOffHand().setAmount(0);
-
-            new BukkitRunnable()
-            {
-                @Override
-                public void run()
-                {
-                    player.getInventory().addItem(PlayerTracker.item());
-                    this.cancel();
-                }
-                // 10 sec countdown
-            }.runTaskTimer(Shg.getInstance(), 200, 0);
+            event.getItem().setAmount(event.getItem().getAmount() - 1);
+//
+//            if(event.getHand() == EquipmentSlot.HAND)
+//                player.getInventory().getItemInMainHand().setAmount(0);
+//            else
+//                player.getInventory().getItemInOffHand().setAmount(0);
         }
     }
 }
