@@ -11,10 +11,8 @@ public class EndCommand implements CommandExecutor
     @Override
     public boolean onCommand(CommandSender sender, Command command, String s, String[] strings)
     {
-        // kill every player
         if (Shg.game.getState() == Game.State.RUNNING)
-            for (var player : Shg.game.getAlivePlayers())
-                Shg.game.kill(player, null);
+            Shg.game.finish();
 
         return true;
     }

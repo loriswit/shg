@@ -1,7 +1,6 @@
 package com.loriswit.shg.listeners;
 
 import com.loriswit.shg.Game;
-import com.loriswit.shg.PlayerTracker;
 import com.loriswit.shg.Shg;
 import org.bukkit.*;
 import org.bukkit.entity.Arrow;
@@ -18,7 +17,12 @@ public class DamageListener implements Listener
     public void onEntityDamage(EntityDamageEvent event)
     {
         if (Shg.game.getState() != Game.State.RUNNING)
+        {
+            if (Shg.game.getState() == Game.State.FINISHED)
+                event.setCancelled(true);
+
             return;
+        }
 
         if (event.getEntity().getType() != EntityType.PLAYER)
             return;

@@ -3,13 +3,12 @@ package com.loriswit.shg;
 import org.bukkit.*;
 import org.bukkit.block.Chest;
 import org.bukkit.entity.Player;
-import org.bukkit.scheduler.BukkitRunnable;
 
 import java.io.File;
 import java.util.*;
 import java.util.concurrent.ThreadLocalRandom;
 
-public class Game extends BukkitRunnable
+public class Game
 {
     private State state;
 
@@ -20,59 +19,42 @@ public class Game extends BukkitRunnable
 
     private World world;
     private List<Player> alivePlayers = new LinkedList<>();
+    private final List<Location> spawnLocations = new ArrayList<>();
     private Map<String, Stats> stats = new HashMap<>();
 
-    private double worldRadius;
-    private Location worldCenter;
+    private double arenaRadius;
+    private Location arenaCenter;
     private Location initSpawn;
 
-    private final List<Location> spawnLocations = new ArrayList<>();
-
     private final int blockPerPlayer = 32000;
+    private final int arenaSpan = (int) (Math.sqrt(blockPerPlayer) * 50);
+    private final int worldLimit = 29000000;
 
     private final int gameTime = 900;
-    private final int startCD = 10;
-    private final int chestCD = 120;
+    private final int startCountdown = 10;
+    private final int chestCountdown = 120;
+    private final int nextCountdown = 15;
 
-    private int countdown = startCD;
+    private Countdown countdown;
 
     public Game()
     {
-        var uuid = UUID.randomUUID();
-        var creator = new WorldCreator("world-" + uuid).generateStructures(false)/*.seed(-293595622031852173L)*/;
+        var creator = new WorldCreator("arena").generateStructures(false);
         world = Bukkit.createWorld(creator);
         world.setDifficulty(Difficulty.HARD);
         world.setMonsterSpawnLimit(0);
         world.setGameRule(GameRule.ANNOUNCE_ADVANCEMENTS, false);
 
-        worldCenter = world.getSpawnLocation().clone();
         Bukkit.getLogger().info("Seed: " + world.getSeed());
 
-        // avoid having the center on water
-        while (world.getHighestBlockAt(worldCenter).getType() == Material.WATER)
-        {
-            Bukkit.getLogger().info("water not cool");
-            worldCenter.add(100, 0, 100);
-            worldCenter.setY(world.getHighestBlockYAt(worldCenter));
-        }
-
-        world.getWorldBorder().setCenter(worldCenter);
-
-        initSpawn = new Location(world, 100000, 250, 0);
-        initSpawn.add(-0.5, 0, -0.5);
-        initSpawn.setPitch(90);
+        initSpawn = new Location(world, -0.5, 250, -0.5, 0, 90);
+        arenaCenter = new Location(world, -worldLimit, 0, arenaSpan);
+        arenaCenter.setY(world.getHighestBlockYAt(arenaCenter));
 
         // fill some planks
         initPlanks(true);
 
-        for (var player : Bukkit.getOnlinePlayers())
-            initPlayer(player);
-
-        world.loadChunk(worldCenter.getChunk());
-
-        state = State.INIT;
-        alivePlayers.clear();
-        stats.clear();
+        init();
     }
 
     public State getState()
@@ -87,14 +69,39 @@ public class Game extends BukkitRunnable
 
     public Location getCenter()
     {
-        return worldCenter;
+        return arenaCenter;
+    }
+
+    public void init()
+    {
+        // move arena center
+        arenaCenter.add(arenaSpan, 0, 0);
+        if (arenaCenter.getBlockX() > worldLimit)
+        {
+            arenaCenter.add(0, arenaSpan, 0);
+            arenaCenter.setX(arenaSpan - worldLimit);
+        }
+
+        world.getWorldBorder().reset();
+        world.loadChunk(arenaCenter.getChunk());
+
+        for (var player : Bukkit.getOnlinePlayers())
+            initPlayer(player);
+
+        if (countdown != null)
+            countdown.cancel();
+
+        state = State.INIT;
+        alivePlayers.clear();
+        spawnLocations.clear();
+        stats.clear();
     }
 
     public void initPlayer(Player player)
     {
         player.teleport(initSpawn);
-
         player.setGameMode(GameMode.SPECTATOR);
+        player.stopSound(Sound.MUSIC_DISC_CHIRP);
         player.setLevel(0);
         player.setExp(0);
 
@@ -118,7 +125,7 @@ public class Game extends BukkitRunnable
         state = State.COUNTDOWN;
 
         alivePlayers.addAll(Bukkit.getOnlinePlayers());
-        worldRadius = Math.sqrt(alivePlayers.size() * blockPerPlayer) / 2;
+        arenaRadius = Math.sqrt(alivePlayers.size() * blockPerPlayer) / 2;
 
         for (var player : alivePlayers)
             stats.put(player.getName(), new Stats());
@@ -126,12 +133,14 @@ public class Game extends BukkitRunnable
         Thread thread = new Thread(this::computeSpawnLocations);
         thread.start();
 
-        runTaskTimer(Shg.getInstance(), 0, 20);
+        countdown = new Countdown(startCountdown);
+        countdown.onStep(this::countdownStep);
+        countdown.onFinished(this::startGame);
     }
 
     public void kill(Player player, Player killer)
     {
-        if(!alivePlayers.contains(player))
+        if (!alivePlayers.contains(player))
             return;
 
         stats.get(player.getName()).rank = alivePlayers.size();
@@ -149,6 +158,39 @@ public class Game extends BukkitRunnable
             finish();
     }
 
+    public void finish()
+    {
+        state = State.FINISHED;
+
+        if (alivePlayers.size() > 1)
+        {
+            init();
+            return;
+        }
+
+        if (alivePlayers.size() == 1)
+        {
+            var winner = alivePlayers.get(0);
+            var s = stats.get(winner.getName());
+            s.rank = 1;
+
+            var console = Bukkit.getConsoleSender();
+            Bukkit.dispatchCommand(console, "title " + winner.getName() + " times 0 100 20");
+            Bukkit.dispatchCommand(console, "title " + winner.getName() + " title {\"text\":\"Tu as gagné !\"}");
+            Bukkit.broadcastMessage(ChatColor.RED + winner.getName() + " a gagné ! (" + s.kills + " kills)");
+
+            Bukkit.getLogger().info("Fin de la partie");
+
+            // play victory music
+            world.playSound(winner.getLocation(), Sound.ITEM_TOTEM_USE, 100000, 1);
+            world.playSound(winner.getLocation(), Sound.MUSIC_DISC_CHIRP, 100000, 1);
+        }
+
+        countdown.cancel();
+        countdown = new Countdown(nextCountdown);
+        countdown.onFinished(this::init);
+    }
+
     public void deleteWorld()
     {
         for (var player : Bukkit.getOnlinePlayers())
@@ -159,25 +201,10 @@ public class Game extends BukkitRunnable
         Util.deleteDirectory(new File(world.getName()));
     }
 
-    @Override
-    public void run()
-    {
-        if (state == State.COUNTDOWN && countdown > 0)
-            countdownStep();
-
-        else if (state == State.COUNTDOWN && countdown == 0)
-            startGame();
-
-        else if (state == State.RUNNING && countdown == 0)
-            spawnChest();
-
-        --countdown;
-    }
-
     private void countdownStep()
     {
         var console = Bukkit.getConsoleSender();
-        Bukkit.dispatchCommand(console, "title @a title {\"text\":\"" + countdown + "\"}");
+        Bukkit.dispatchCommand(console, "title @a title {\"text\":\"" + countdown.value() + "\"}");
 
         for (var player : Bukkit.getOnlinePlayers())
             player.playSound(player.getLocation(), Sound.UI_BUTTON_CLICK, 10, 1);
@@ -197,7 +224,7 @@ public class Game extends BukkitRunnable
             e.printStackTrace();
         }
 
-        initPlanks(false);
+//        initPlanks(false);
 
         var console = Bukkit.getConsoleSender();
         Bukkit.dispatchCommand(console, "title @a clear");
@@ -206,7 +233,8 @@ public class Game extends BukkitRunnable
         Bukkit.broadcastMessage(ChatColor.YELLOW + "La partie a débuté !");
         Bukkit.broadcastMessage(ChatColor.YELLOW + "Il y a " + alivePlayers.size() + " joueurs");
 
-        world.getWorldBorder().setSize(worldRadius * 2);
+        world.getWorldBorder().setCenter(arenaCenter);
+        world.getWorldBorder().setSize(arenaRadius * 2);
         world.getWorldBorder().setSize(1, gameTime);
 
         world.setStorm(false);
@@ -229,7 +257,9 @@ public class Game extends BukkitRunnable
             ++index;
         }
 
-        countdown = chestCD;
+        countdown = new Countdown(chestCountdown);
+        countdown.onFinished(this::spawnChest);
+
         state = State.RUNNING;
 
         // in case all players left during countdown
@@ -244,7 +274,7 @@ public class Game extends BukkitRunnable
             Bukkit.getLogger().info("Computing spawn locations...");
 
             var safetyDist = 80;
-            var spawnRadius = worldRadius - safetyDist;
+            var spawnRadius = arenaRadius - safetyDist;
 
             Bukkit.getLogger().info("player count: " + alivePlayers.size());
             Bukkit.getLogger().info("safety dist: " + safetyDist);
@@ -261,7 +291,7 @@ public class Game extends BukkitRunnable
                     var x = ThreadLocalRandom.current().nextDouble(-spawnRadius, spawnRadius);
                     var z = ThreadLocalRandom.current().nextDouble(-spawnRadius, spawnRadius);
 
-                    loc = worldCenter.clone().add(x, 0, z);
+                    loc = arenaCenter.clone().add(x, 0, z);
                     loc.setY(world.getHighestBlockYAt(loc));
 
                     if (loc.getBlock().getType().isSolid())
@@ -309,12 +339,12 @@ public class Game extends BukkitRunnable
 
         var x = ThreadLocalRandom.current().nextDouble(-radius, radius);
         var z = ThreadLocalRandom.current().nextDouble(-radius, radius);
-        var location = worldCenter.clone().add(x, 0, z);
+        var location = arenaCenter.clone().add(x, 0, z);
         location.setY(world.getHighestBlockYAt(location) + 1);
 
         Bukkit.getLogger().info("X, Z : " + x + ", " + z);
         Bukkit.getLogger().info("Chest location: " + location.getBlockX() + ", " + location.getBlockZ());
-        Bukkit.getLogger().info("World center: " + worldCenter.getBlockX() + ", " + worldCenter.getBlockZ());
+        Bukkit.getLogger().info("World center: " + arenaCenter.getBlockX() + ", " + arenaCenter.getBlockZ());
         Bukkit.getLogger().info("Border center: " + world.getWorldBorder().getCenter().getBlockX() + ", " + world.getWorldBorder().getCenter().getBlockZ());
 
         location.getBlock().setType(Material.BEACON);
@@ -332,53 +362,7 @@ public class Game extends BukkitRunnable
         Bukkit.broadcastMessage(ChatColor.YELLOW + "Un coffre est apparu !");
         world.playSound(location, Sound.EVENT_RAID_HORN, 100000, 1);
 
-        countdown = chestCD;
-    }
-
-    private void finish()
-    {
-        state = State.FINISHED;
-
-        if (alivePlayers.size() > 0)
-        {
-            var winner = alivePlayers.get(0);
-            var s = stats.get(winner.getName());
-            s.rank = 1;
-
-            var console = Bukkit.getConsoleSender();
-            Bukkit.dispatchCommand(console, "title " + winner.getName() + " times 0 100 20");
-            Bukkit.dispatchCommand(console, "title " + winner.getName() + " title {\"text\":\"Tu as gagné !\"}");
-            Bukkit.broadcastMessage(ChatColor.RED + winner.getName() + " a gagné ! (" + s.kills + " kills)");
-
-            Bukkit.getLogger().info("Fin de la partie");
-
-            // play victory music
-            world.playSound(winner.getLocation(), Sound.ITEM_TOTEM_USE, 100000, 1);
-            world.playSound(winner.getLocation(), Sound.MUSIC_DISC_CHIRP, 100000, 1);
-        }
-
-//        try
-//        {
-//            var writer = new PrintWriter("results-" + new java.util.Date().getTime() + ".csv");
-//            for (var stat : stats.entrySet())
-//                writer.println(stat.getKey() + "," + stat.getValue().rank + "," + stat.getValue().kills);
-//            writer.close();
-//        } catch (FileNotFoundException e)
-//        {
-//            e.printStackTrace();
-//        }
-
-        cancel();
-
-        // start game 5 seconds later
-        new BukkitRunnable()
-        {
-            @Override
-            public void run()
-            {
-                Shg.getInstance().newGame();
-                cancel();
-            }
-        }.runTaskTimer(Shg.getInstance(), 100, 0);
+        countdown = new Countdown(chestCountdown);
+        countdown.onFinished(this::spawnChest);
     }
 }
