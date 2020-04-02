@@ -61,7 +61,11 @@ public class DamageListener implements Listener
             switch (event.getCause())
             {
                 case SUFFOCATION:
-                    Bukkit.broadcastMessage(ChatColor.YELLOW + player.getName() + " est mort dans la tempête");
+                    var border = player.getWorld().getWorldBorder();
+                    if (player.getLocation().distanceSquared(border.getCenter()) > border.getSize() * border.getSize() / 4)
+                        Bukkit.broadcastMessage(ChatColor.YELLOW + player.getName() + " est mort dans la tempête");
+                    else
+                        Bukkit.broadcastMessage(ChatColor.YELLOW + player.getName() + " est mort étouffé");
                     break;
                 case FALL:
                     Bukkit.broadcastMessage(ChatColor.YELLOW + player.getName() + " a fait une chute mortelle");
@@ -70,7 +74,7 @@ public class DamageListener implements Listener
                 case FIRE_TICK:
                 case LAVA:
                 case HOT_FLOOR:
-                    Bukkit.broadcastMessage(ChatColor.YELLOW + player.getName() + " est mort de ses brûlures");
+                    Bukkit.broadcastMessage(ChatColor.YELLOW + player.getName() + " est mort de ses brulures");
                     break;
                 case DROWNING:
                     Bukkit.broadcastMessage(ChatColor.YELLOW + player.getName() + " s'est noyé");

@@ -3,6 +3,8 @@ package com.loriswit.shg;
 import org.bukkit.*;
 import org.bukkit.block.Chest;
 import org.bukkit.entity.Player;
+import org.bukkit.inventory.ItemStack;
+import org.bukkit.inventory.meta.MapMeta;
 
 import java.io.File;
 import java.util.*;
@@ -19,8 +21,8 @@ public class Game
 
     private World world;
     private List<Player> alivePlayers = new LinkedList<>();
-    private final List<Location> spawnLocations = new ArrayList<>();
     private Map<String, Stats> stats = new HashMap<>();
+    private final List<Location> spawnLocations = new ArrayList<>();
 
     private double arenaRadius;
     private Location arenaCenter;
@@ -44,6 +46,7 @@ public class Game
         world.setDifficulty(Difficulty.HARD);
         world.setMonsterSpawnLimit(0);
         world.setGameRule(GameRule.ANNOUNCE_ADVANCEMENTS, false);
+        world.setTime(1000);
 
         Bukkit.getLogger().info("Seed: " + world.getSeed());
 
@@ -95,13 +98,14 @@ public class Game
         alivePlayers.clear();
         spawnLocations.clear();
         stats.clear();
+        MiniMap.clear();
     }
 
     public void initPlayer(Player player)
     {
         player.teleport(initSpawn);
         player.setGameMode(GameMode.SPECTATOR);
-        player.stopSound(Sound.MUSIC_DISC_CHIRP);
+        player.getInventory().clear();
         player.setLevel(0);
         player.setExp(0);
 
@@ -130,8 +134,8 @@ public class Game
         for (var player : alivePlayers)
             stats.put(player.getName(), new Stats());
 
-        Thread thread = new Thread(this::computeSpawnLocations);
-        thread.start();
+        new Thread(this::computeSpawnLocations).start();
+        new Thread(this::createMiniMap).start();
 
         countdown = new Countdown(startCountdown);
         countdown.onStep(this::countdownStep);
@@ -189,6 +193,8 @@ public class Game
         countdown.cancel();
         countdown = new Countdown(nextCountdown);
         countdown.onFinished(this::init);
+
+        world.getWorldBorder().setSize(world.getWorldBorder().getSize());
     }
 
     public void deleteWorld()
@@ -224,8 +230,6 @@ public class Game
             e.printStackTrace();
         }
 
-//        initPlanks(false);
-
         var console = Bukkit.getConsoleSender();
         Bukkit.dispatchCommand(console, "title @a clear");
 
@@ -241,18 +245,25 @@ public class Game
         world.setThundering(false);
         world.setTime(1000);
 
+        var mapView = Bukkit.createMap(world);
+        mapView.addRenderer(new MiniMap());
+
+        ItemStack miniMap = new ItemStack(Material.FILLED_MAP);
+        var meta = ((MapMeta) miniMap.getItemMeta());
+        meta.setMapView(mapView);
+        miniMap.setItemMeta(meta);
+
         int index = 0;
         for (var player : alivePlayers)
         {
             player.teleport(spawnLocations.get(index));
-
             player.setHealth(20);
             player.setFoodLevel(20);
             player.setSaturation(5);
-
-            player.getInventory().clear();
             player.setGameMode(GameMode.SURVIVAL);
             player.playSound(player.getLocation(), Sound.ENTITY_ENDERMAN_TELEPORT, 10, 1);
+            player.stopSound(Sound.MUSIC_DISC_CHIRP);
+            player.getInventory().setItemInOffHand(miniMap);
 
             ++index;
         }
@@ -267,6 +278,11 @@ public class Game
             finish();
     }
 
+    private void createMiniMap()
+    {
+        MiniMap.generateWaterMap(arenaCenter, arenaRadius);
+    }
+
     private void computeSpawnLocations()
     {
         synchronized (spawnLocations)
@@ -276,9 +292,9 @@ public class Game
             var safetyDist = 80;
             var spawnRadius = arenaRadius - safetyDist;
 
-            Bukkit.getLogger().info("player count: " + alivePlayers.size());
-            Bukkit.getLogger().info("safety dist: " + safetyDist);
-            Bukkit.getLogger().info("spawn dist: " + spawnRadius);
+            Bukkit.getLogger().info("Player count: " + alivePlayers.size());
+            Bukkit.getLogger().info("Safety dist: " + safetyDist);
+            Bukkit.getLogger().info("Spawn dist: " + spawnRadius);
 
             for (var i = 0; i < alivePlayers.size(); ++i)
             {
@@ -291,7 +307,7 @@ public class Game
                     var x = ThreadLocalRandom.current().nextDouble(-spawnRadius, spawnRadius);
                     var z = ThreadLocalRandom.current().nextDouble(-spawnRadius, spawnRadius);
 
-                    loc = arenaCenter.clone().add(x, 0, z);
+                    loc = arenaCenter.clone().add(Math.round(x), 0, Math.round(z));
                     loc.setY(world.getHighestBlockYAt(loc));
 
                     if (loc.getBlock().getType().isSolid())
@@ -306,7 +322,10 @@ public class Game
                     }
 
                     if (!ok)
+                    {
                         dist -= 5;
+                        Bukkit.getLogger().warning("Bad spawn location");
+                    }
                 }
 
                 // center on block
@@ -315,7 +334,7 @@ public class Game
                 spawnLocations.add(loc);
             }
 
-            Bukkit.getLogger().info("Spawn locations computed.");
+            Bukkit.getLogger().info("Spawn locations computed!");
             spawnLocations.notify();
         }
     }

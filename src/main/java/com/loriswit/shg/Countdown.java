@@ -10,7 +10,7 @@ public class Countdown extends BukkitRunnable
 
     public Countdown(int value)
     {
-        counter = value;
+        counter = value + 1;
         runTaskTimer(Shg.getInstance(), 0, 20);
     }
 
