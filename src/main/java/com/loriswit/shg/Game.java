@@ -29,6 +29,7 @@ public class Game
     private Location initSpawn;
 
     private int chestCount = 0;
+    private boolean justStarted = false;
 
     private final int blockPerPlayer = 33000;
     private final int arenaSpan = (int) (Math.sqrt(blockPerPlayer) * 50);
@@ -66,6 +67,11 @@ public class Game
     public State getState()
     {
         return state;
+    }
+
+    public boolean hasJustStarted()
+    {
+        return justStarted;
     }
 
     public List<Player> getAlivePlayers()
@@ -275,6 +281,9 @@ public class Game
         countdown.onFinished(this::spawnChest);
 
         state = State.RUNNING;
+        justStarted = true;
+
+        new Countdown(5).onFinished(() -> justStarted = false);
 
         // in case all players left during countdown
         if (alivePlayers.size() < 2)

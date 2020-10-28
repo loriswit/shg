@@ -29,6 +29,16 @@ public class DamageListener implements Listener
 
         var player = (Player) event.getEntity();
 
+        // avoid players suffocating when spawning
+        if(Shg.game.hasJustStarted() && event.getCause() == EntityDamageEvent.DamageCause.SUFFOCATION)
+        {
+            var location = player.getLocation();
+            location.setY(player.getWorld().getHighestBlockYAt(location) + 1);
+            player.teleport(location);
+            event.setCancelled(true);
+            return;
+        }
+
         // skip if player still alive
         if (player.getHealth() - event.getDamage() > 0)
             return;
