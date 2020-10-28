@@ -28,12 +28,15 @@ public class Game
     private Location arenaCenter;
     private Location initSpawn;
 
-    private final int blockPerPlayer = 32000;
+    private int chestCount = 0;
+
+    private final int blockPerPlayer = 33000;
     private final int arenaSpan = (int) (Math.sqrt(blockPerPlayer) * 50);
     private final int worldLimit = 29000000;
 
-    private final int gameTime = 900;
+    private final int gameTime = 1000;
     private final int startCountdown = 10;
+    private final int firstChestCountdown = 240;
     private final int chestCountdown = 120;
     private final int nextCountdown = 15;
 
@@ -268,7 +271,7 @@ public class Game
             ++index;
         }
 
-        countdown = new Countdown(chestCountdown);
+        countdown = new Countdown(firstChestCountdown);
         countdown.onFinished(this::spawnChest);
 
         state = State.RUNNING;
@@ -359,14 +362,43 @@ public class Game
         var x = ThreadLocalRandom.current().nextDouble(-radius, radius);
         var z = ThreadLocalRandom.current().nextDouble(-radius, radius);
         var location = arenaCenter.clone().add(x, 0, z);
-        location.setY(world.getHighestBlockYAt(location) + 1);
+        location.setY(world.getHighestBlockYAt(location) + 2);
 
         Bukkit.getLogger().info("X, Z : " + x + ", " + z);
         Bukkit.getLogger().info("Chest location: " + location.getBlockX() + ", " + location.getBlockZ());
         Bukkit.getLogger().info("World center: " + arenaCenter.getBlockX() + ", " + arenaCenter.getBlockZ());
         Bukkit.getLogger().info("Border center: " + world.getWorldBorder().getCenter().getBlockX() + ", " + world.getWorldBorder().getCenter().getBlockZ());
 
-        location.getBlock().setType(Material.BEACON);
+        Material glass;
+        switch (Math.abs(arenaCenter.getBlockX() + chestCount++) % 8)
+        {
+            case 0:
+                glass = Material.RED_STAINED_GLASS;
+                break;
+            case 1:
+                glass = Material.BLUE_STAINED_GLASS;
+                break;
+            case 2:
+                glass = Material.GREEN_STAINED_GLASS;
+                break;
+            case 3:
+                glass = Material.YELLOW_STAINED_GLASS;
+                break;
+            case 4:
+                glass = Material.CYAN_STAINED_GLASS;
+                break;
+            case 5:
+                glass = Material.MAGENTA_STAINED_GLASS;
+                break;
+            case 6:
+                glass = Material.BLACK_STAINED_GLASS;
+                break;
+            default:
+                glass = Material.WHITE_STAINED_GLASS;
+                break;
+        }
+        location.getBlock().setType(glass);
+        location.add(0, -1, 0).getBlock().setType(Material.BEACON);
         for (x = 0; x < 3; ++x)
             for (z = 0; z < 3; ++z)
                 location.clone().add(x - 1, -1, z - 1).getBlock().setType(Material.EMERALD_BLOCK);
