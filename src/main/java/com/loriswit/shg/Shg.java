@@ -26,6 +26,7 @@ public class Shg extends JavaPlugin
         getServer().getPluginManager().registerEvents(new InteractListener(), this);
         getServer().getPluginManager().registerEvents(new InventoryListener(), this);
         getServer().getPluginManager().registerEvents(new BlockListener(), this);
+        getServer().getPluginManager().registerEvents(new ServerPingListener(), this);
 
         getCommand("start").setExecutor(new StartCommand());
         getCommand("end").setExecutor(new EndCommand());
