@@ -8,7 +8,7 @@ import org.bukkit.event.block.BlockBreakEvent;
 public class BlockListener implements Listener
 {
     @EventHandler
-    public void onEntityDamage(BlockBreakEvent event)
+    public void onBlockBreak(BlockBreakEvent event)
     {
         if(event.getBlock().getType() == Material.EMERALD_BLOCK || event.getBlock().getType() == Material.BEACON)
             event.setDropItems(false);

@@ -45,7 +45,9 @@ public class Game
 
     public Game()
     {
-        var creator = new WorldCreator("arena").generateStructures(false);
+        var creator = new WorldCreator("arena");
+        creator.generateStructures(false);
+
         world = Bukkit.createWorld(creator);
         world.setDifficulty(Difficulty.HARD);
         world.setMonsterSpawnLimit(0);

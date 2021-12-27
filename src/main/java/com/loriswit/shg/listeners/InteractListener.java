@@ -7,8 +7,6 @@ import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
 import org.bukkit.event.block.Action;
 import org.bukkit.event.player.PlayerInteractEvent;
-import org.bukkit.inventory.EquipmentSlot;
-import org.bukkit.scheduler.BukkitRunnable;
 
 public class InteractListener implements Listener
 {
@@ -47,11 +45,6 @@ public class InteractListener implements Listener
             player.teleport(location);
 
             event.getItem().setAmount(event.getItem().getAmount() - 1);
-//
-//            if(event.getHand() == EquipmentSlot.HAND)
-//                player.getInventory().getItemInMainHand().setAmount(0);
-//            else
-//                player.getInventory().getItemInOffHand().setAmount(0);
         }
     }
 }
