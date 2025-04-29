@@ -56,7 +56,7 @@ public class MiniMap extends MapRenderer
                     mapCanvas.setPixel(x, y, waterMap[x][y] ? MapPalette.PALE_BLUE : MapPalette.LIGHT_BROWN);
 
         if (mapCanvas.getCursors().size() == 0)
-            mapCanvas.getCursors().addCursor(new MapCursor((byte) 0, (byte) 0, (byte) 0, MapCursor.Type.WHITE_POINTER, true));
+            mapCanvas.getCursors().addCursor(new MapCursor((byte) 0, (byte) 0, (byte) 0, MapCursor.Type.PLAYER, true));
 
         var cursor = mapCanvas.getCursors().getCursor(0);
         cursor.setX((byte) ((player.getLocation().getBlockX() - originX) / step * 2 - 128));

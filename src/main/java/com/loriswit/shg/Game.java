@@ -3,6 +3,7 @@ package com.loriswit.shg;
 import org.bukkit.*;
 import org.bukkit.block.Chest;
 import org.bukkit.entity.Player;
+import org.bukkit.entity.SpawnCategory;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.MapMeta;
 
@@ -50,7 +51,7 @@ public class Game
 
         world = Bukkit.createWorld(creator);
         world.setDifficulty(Difficulty.HARD);
-        world.setMonsterSpawnLimit(0);
+        world.setSpawnLimit(SpawnCategory.MONSTER, 0);
         world.setGameRule(GameRule.ANNOUNCE_ADVANCEMENTS, false);
         world.setTime(1000);
 
@@ -185,7 +186,7 @@ public class Game
 
         if (alivePlayers.size() == 1)
         {
-            var winner = alivePlayers.get(0);
+            var winner = alivePlayers.getFirst();
             var s = stats.get(winner.getName());
             s.rank = 1;
 
@@ -380,34 +381,16 @@ public class Game
         Bukkit.getLogger().info("World center: " + arenaCenter.getBlockX() + ", " + arenaCenter.getBlockZ());
         Bukkit.getLogger().info("Border center: " + world.getWorldBorder().getCenter().getBlockX() + ", " + world.getWorldBorder().getCenter().getBlockZ());
 
-        Material glass;
-        switch (Math.abs(arenaCenter.getBlockX() + chestCount++) % 8)
-        {
-            case 0:
-                glass = Material.RED_STAINED_GLASS;
-                break;
-            case 1:
-                glass = Material.BLUE_STAINED_GLASS;
-                break;
-            case 2:
-                glass = Material.GREEN_STAINED_GLASS;
-                break;
-            case 3:
-                glass = Material.YELLOW_STAINED_GLASS;
-                break;
-            case 4:
-                glass = Material.CYAN_STAINED_GLASS;
-                break;
-            case 5:
-                glass = Material.MAGENTA_STAINED_GLASS;
-                break;
-            case 6:
-                glass = Material.BLACK_STAINED_GLASS;
-                break;
-            default:
-                glass = Material.WHITE_STAINED_GLASS;
-                break;
-        }
+        var glass = switch (Math.abs(arenaCenter.getBlockX() + chestCount++) % 8) {
+            case 0 -> Material.RED_STAINED_GLASS;
+            case 1 -> Material.BLUE_STAINED_GLASS;
+            case 2 -> Material.GREEN_STAINED_GLASS;
+            case 3 -> Material.YELLOW_STAINED_GLASS;
+            case 4 -> Material.CYAN_STAINED_GLASS;
+            case 5 -> Material.MAGENTA_STAINED_GLASS;
+            case 6 -> Material.BLACK_STAINED_GLASS;
+            default -> Material.WHITE_STAINED_GLASS;
+        };
         location.getBlock().setType(glass);
         location.add(0, -1, 0).getBlock().setType(Material.BEACON);
         for (x = 0; x < 3; ++x)
